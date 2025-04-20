@@ -1,6 +1,5 @@
 import datetime
 import time
-
 import snap7
 from pyModbusTCP.client import ModbusClient
 from openpyxl import *

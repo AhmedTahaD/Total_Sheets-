@@ -25,10 +25,10 @@ Date : 31/07/2024
 
 # Plc parameter for line c , line B and line A
 line_c_ip = '192.168.4.72'
-line_b_ip = '192.168.4.171'
+line_b_ip = '192.168.4.71'
 line_a_ip = '192.168.4.71'
 #sheeter_b_ip = '192.168.4.170'
-sheeter_a_ip = '192.168.4.170'
+sheeter_a_ip = '192.168.4.70'
 mtc_plc10 = '192.168.4.10'
 rack = 0
 slot = 2
@@ -138,14 +138,18 @@ last_value = None
 previous_time = None
 cutting_changes = []
 total_sheets = 0
+#start = time.time()
+#print(start)
+period = 0
 while True:
+
     total_cut = read_int(sheeter_a_plc, 1100, 96, 2)
     splice_cycle = read_bool(sheeter_a_plc, 260, 0, 16, 2, 5)
     # print(f"total cut = {total_cut}")
     try:
         if (total_cut != last_value) or splice_cycle:
             if last_value is not None:
-                period = ((datetime.datetime.now() - previous_time).total_seconds()) / 60
+                #period = ((datetime.datetime.now() - previous_time).total_seconds()) / 60
                 cutting_changes.append((last_value, period))
                 print(f" Sheeter is running with speed {last_value} sheets/min, and duration  = {period} ")
                     # order_work_sheet.cell(row = n, column = 2).value = last_value
@@ -153,20 +157,33 @@ while True:
                 if splice_cycle and not previous_state:
                     n = work_sheet.max_row
                     for value, period in cutting_changes:
-                        total_sheets += (value * period)
+                        total_sheets += (value * period *.2)
+                    total_sheets = round(total_sheets /60)
+                    print(f"Total sheets  = {total_sheets} sheets")
                     work_sheet.cell(row= n, column=2).value = total_sheets
+                    reel_id_unwind1 = read_data(sheeter_a_plc, 26, 2, 6)
+                    reel_id_unwind2 = read_data(sheeter_a_plc, 26, 10, 6)
+                    working_unwind = read_bool(sheeter_a_plc, 7, 0, 128, 65, 5)
                     if working_unwind == 0:
                         working_reel = reel_id_unwind1
-                        current_row = check_exist(working_reel, file_name)
+                        #current_row = check_exist(working_reel, file_name)
                         print(f"working_reel = {reel_id_unwind1}")
+                        work_sheet.cell(row = n+1, column=1).value = working_reel
+                        total_sheets = 0
+                        """
                         if current_row:
                             total_sheets = work_sheet.cell(row=current_row, column=2).value
                         else:
                             work_sheet.cell(row=n + 1, column=1).value = working_reel
                             total_sheets = 0
                             # print(f"reel_1_diameter = {reel_1_diameter}")
+                        """
                     elif working_unwind == 1:
                         working_reel = reel_id_unwind2
+                        print(f"working_reel = {reel_id_unwind2}")
+                        total_sheets = 0
+                        work_sheet.cell(row=n + 1, column=1).value = working_reel
+                        """
                         current_row = check_exist(working_reel, file_name)
                         if current_row:
                             total_sheets = work_sheet.cell(row=current_row, column=2).value
@@ -175,10 +192,15 @@ while True:
                             print(f"working_reel = {reel_id_unwind2}")
                             work_sheet.cell(row=n + 1, column=1).value = working_reel
                             total_sheets = 0
+                        """
                     cutting_changes.clear()
                 previous_state = splice_cycle
-            previous_time = datetime.datetime.now()
+            #previous_time = datetime.datetime.now()
             last_value = total_cut
+            period = 0
+        period += 1
+        print(f"period = {period}")
+        time.sleep(.1)
 
         try:
             work_book.save(file_name)
@@ -190,6 +212,9 @@ while True:
 
     except Exception as e:
         print(f"error code : {e}")
+
+
+
 
 
 
